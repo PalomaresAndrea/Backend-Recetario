@@ -1,0 +1,59 @@
+name: CI/CD - Backend (Docker -> ACR -> Azure Web App)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+env:
+  IMAGE_NAME: recetario-backend
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Login Azure
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Login ACR
+      - name: ACR Login
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
+
+      # Build & Push
+      - name: Build & Push image
+        run: |
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
+          docker push  ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+      # Deploy a Azure Web App for Containers
+      - name: Configure Web App container
+        run: |
+          az webapp config container set \
+            --name ${{ secrets.WEBAPP_NAME }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP }} \
+            --docker-custom-image-name ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+            --docker-registry-server-url https://${{ secrets.ACR_LOGIN_SERVER }}
+
+      # Variables de app (conexión Mongo, JWT, CORS)
+      - name: App settings
+        run: |
+          az webapp config appsettings set \
+            --name ${{ secrets.WEBAPP_NAME }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP }} \
+            --settings \
+              NODE_ENV=production \
+              PORT=3000 \
+              MONGO_URI=${{ secrets.MONGO_URI }} \
+              JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              CORS_ORIGINS=${{ secrets.CORS_ORIGINS }} \
+              BUILD_SHA=${{ github.sha }}
+
+      - name: Restart Web App
+        run: az webapp restart --name ${{ secrets.WEBAPP_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP }}
