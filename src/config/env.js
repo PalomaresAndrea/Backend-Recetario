@@ -1,20 +1,29 @@
+// src/config/env.js
 import 'dotenv/config';
 
-const required = (key, fallback = undefined) => {
-  const v = process.env[key] ?? fallback;
-  if (v === undefined) throw new Error(`Missing env var: ${key}`);
-  return v;
-};
+function toNumber(v, def) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : def;
+}
 
 export const config = {
-  env: process.env.NODE_ENV ?? 'development',
-  port: Number(process.env.PORT ?? 3000),
-  jwtSecret: required('JWT_SECRET', 'dev-secret'),
-  mongoUri: required('MONGO_URI', 'mongodb://localhost:27017/recetario'),
-  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean),
-  appInsights: process.env.APPINSIGHTS_CONNECTION_STRING ?? '',
-  buildSha: process.env.BUILD_SHA ?? '',
+  env: process.env.NODE_ENV || 'development',
+  port: toNumber(process.env.PORT, 3000),
+
+  // 🔐 JWT
+  jwtSecret: process.env.JWT_SECRET || 'devsecret',
+
+  // 🗄️ DB
+  mongoUri: process.env.MONGO_URI, // usar Atlas SRV o un mongodb:// local
+
+  // ✉️ SMTP
+  mail: {
+    host: process.env.MAIL_HOST,
+    port: toNumber(process.env.MAIL_PORT, 587),
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
+    from: process.env.MAIL_FROM || process.env.MAIL_USER
+  },
+
+  buildSha: process.env.BUILD_SHA || 'local'
 };
