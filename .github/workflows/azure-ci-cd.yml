@@ -20,15 +20,13 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Ensure Microsoft.Web registered
+      - name: Check Microsoft.Web provider (non-blocking)
         run: |
-          az provider register -n Microsoft.Web
-          for i in {1..40}; do
-            state=$(az provider show -n Microsoft.Web --query registrationState -o tsv || echo Unknown)
-            echo "Microsoft.Web=$state"
-            [ "$state" = "Registered" ] && break
-            sleep 5
-          done
+          STATE=$(az provider show -n Microsoft.Web --query registrationState -o tsv || echo "Unknown")
+          echo "Microsoft.Web state: $STATE"
+          if [ "$STATE" != "Registered" ]; then
+            echo "Microsoft.Web no está registrado o no hay permisos para registrarlo desde el SP. Continuando…"
+          fi
 
       - name: ACR Login (RBAC)
         run: az acr login --name ${{ secrets.ACR_NAME }}
@@ -58,17 +56,12 @@ jobs:
           DH_REPO: ${{ secrets.DOCKERHUB_REPO }} # opcional; si no está, usaremos IMAGE_NAME
         run: |
           if [ -n "${DH_USER}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
-            # Si no definiste DOCKERHUB_REPO, usa IMAGE_NAME
             if [ -z "${DH_REPO}" ]; then DH_REPO="${{ env.IMAGE_NAME }}"; fi
-
             SRC="${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
             DST_SHA="${DH_USER}/${DH_REPO}:${GITHUB_SHA::7}"
             DST_LATEST="${DH_USER}/${DH_REPO}:latest"
-
-            # Re-etiquetar sin reconstruir (la imagen ya está local por el build)
             docker tag "$SRC" "$DST_SHA"
             docker tag "$SRC" "$DST_LATEST"
-
             docker push "$DST_SHA"
             docker push "$DST_LATEST"
           else
