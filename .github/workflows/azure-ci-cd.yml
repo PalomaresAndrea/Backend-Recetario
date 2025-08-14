@@ -112,3 +112,15 @@ jobs:
           done
           echo "Healthcheck failed"
           exit 1
+
+      - name: Mostrar URL HTTPS del Backend
+        id: backend_url
+        run: |
+          HOST=$(az webapp show -g ${{ secrets.RESOURCE_GROUP }} -n ${{ secrets.WEBAPP_NAME }} --query defaultHostName -o tsv)
+          echo "Backend HTTPS: https://${HOST}"
+          echo "url=https://${HOST}" >> $GITHUB_OUTPUT
+          {
+            echo "### ✅ Backend desplegado"
+            echo ""
+            echo "🔗 **URL:** https://${HOST}"
+          } >> $GITHUB_STEP_SUMMARY
