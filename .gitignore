@@ -1,0 +1,5 @@
+﻿AZURE_CREDENTIALS.json
+.env
+.env.*
+*.pem
+*.pfx
