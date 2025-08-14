@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "recetario-backend",
   "version": "1.0.0",
   "type": "module",
@@ -21,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.6.0",
     "morgan": "^1.10.0",
+    "nodemailer": "^7.0.5",
     "sanitize-html": "^2.13.0",
     "xss-clean": "^0.1.4"
   }

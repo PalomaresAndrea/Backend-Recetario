@@ -1,10 +1,14 @@
-﻿import { Router } from "express";
-import auth from "./auth.routes.js";
-import recipes from "./recipes.routes.js";
-import comments from "./comments.routes.js";
+﻿import { Router } from 'express';
+
+// ⚠️ Usa alias para no chocar con "auth" de middlewares
+import authRoutes from './auth.routes.js';
+// Si tienes más routers, impórtalos con nombres únicos:
+// import recipesRoutes from './recipes.routes.js';
 
 const api = Router();
-api.use("/auth", auth);
-api.use("/recipes", recipes);
-api.use("/recipes/:id/comments", comments);
+
+// Monta rutas
+api.use('/auth', authRoutes);
+// api.use('/recipes', recipesRoutes);
+
 export default api;

@@ -1,4 +1,4 @@
-name: CI/CD - Backend (Docker -> ACR -> Azure Web App)
+name: CI/CD - Backend (Docker -> ACR -> Web App)
 
 on:
   push:
@@ -15,24 +15,67 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Login Azure
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Login ACR
-      - name: ACR Login
+      - name: Ensure Microsoft.Web registered
         run: |
-          az acr login --name ${{ secrets.ACR_NAME }}
+          az provider register -n Microsoft.Web
+          for i in {1..40}; do
+            state=$(az provider show -n Microsoft.Web --query registrationState -o tsv || echo Unknown)
+            echo "Microsoft.Web=$state"
+            [ "$state" = "Registered" ] && break
+            sleep 5
+          done
 
-      # Build & Push
-      - name: Build & Push image
+      - name: ACR Login (RBAC)
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build image
         run: |
-          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
-          docker push  ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          docker build --platform linux/amd64 \
+            -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+            .
 
-      # Deploy a Azure Web App for Containers
+      - name: Push image to ACR
+        run: |
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+      # ====== Docker Hub (opcional, solo si hay secrets) ======
+      - name: Docker Hub login (skip si no hay secrets)
+        run: |
+          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+          else
+            echo "No DOCKERHUB_USERNAME/DOCKERHUB_TOKEN; skipping Docker Hub login."
+          fi
+
+      - name: Push image to Docker Hub (skip si no hay secrets)
+        env:
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DH_REPO: ${{ secrets.DOCKERHUB_REPO }} # opcional; si no está, usaremos IMAGE_NAME
+        run: |
+          if [ -n "${DH_USER}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            # Si no definiste DOCKERHUB_REPO, usa IMAGE_NAME
+            if [ -z "${DH_REPO}" ]; then DH_REPO="${{ env.IMAGE_NAME }}"; fi
+
+            SRC="${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+            DST_SHA="${DH_USER}/${DH_REPO}:${GITHUB_SHA::7}"
+            DST_LATEST="${DH_USER}/${DH_REPO}:latest"
+
+            # Re-etiquetar sin reconstruir (la imagen ya está local por el build)
+            docker tag "$SRC" "$DST_SHA"
+            docker tag "$SRC" "$DST_LATEST"
+
+            docker push "$DST_SHA"
+            docker push "$DST_LATEST"
+          else
+            echo "No Docker Hub secrets; skipping push."
+          fi
+      # ========================================================
+
       - name: Configure Web App container
         run: |
           az webapp config container set \
@@ -41,19 +84,38 @@ jobs:
             --docker-custom-image-name ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
             --docker-registry-server-url https://${{ secrets.ACR_LOGIN_SERVER }}
 
-      # Variables de app (conexión Mongo, JWT, CORS)
       - name: App settings
         run: |
           az webapp config appsettings set \
             --name ${{ secrets.WEBAPP_NAME }} \
             --resource-group ${{ secrets.RESOURCE_GROUP }} \
             --settings \
-              NODE_ENV=production \
-              PORT=3000 \
-              MONGO_URI=${{ secrets.MONGO_URI }} \
-              JWT_SECRET=${{ secrets.JWT_SECRET }} \
-              CORS_ORIGINS=${{ secrets.CORS_ORIGINS }} \
-              BUILD_SHA=${{ github.sha }}
+            NODE_ENV=production \
+            PORT=3000 \
+            WEBSITES_PORT=3000 \
+            MONGO_URI="${{ secrets.MONGO_URI }}" \
+            JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            CORS_ORIGINS="${{ secrets.CORS_ORIGINS }}" \
+            MAIL_USER="${{ secrets.MAIL_USER }}" \
+            MAIL_PASS="${{ secrets.MAIL_PASS }}" \
+            APPLICATIONINSIGHTS_CONNECTION_STRING="${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}" \
+            APPINSIGHTS_CONNECTIONSTRING="${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}" \
+            BUILD_SHA=${{ github.sha }}
 
       - name: Restart Web App
         run: az webapp restart --name ${{ secrets.WEBAPP_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP }}
+
+      - name: Healthcheck
+        run: |
+          HOST=$(az webapp show -g ${{ secrets.RESOURCE_GROUP }} -n ${{ secrets.WEBAPP_NAME }} --query defaultHostName -o tsv)
+          echo "Probing https://${HOST}/health"
+          for i in {1..24}; do
+            if curl -fsS --max-time 5 "https://${HOST}/health"; then
+              echo "Health OK"
+              exit 0
+            fi
+            echo "Retry $i/24..."
+            sleep 5
+          done
+          echo "Healthcheck failed"
+          exit 1
