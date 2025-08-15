@@ -11,33 +11,23 @@ app.set('trust proxy', 1);
 
 // ===== CORS GUARD (ANTES DE TODO) =====
 const ALLOW_ALL = String(process.env.CORS_ALLOW_ALL || '').toLowerCase() === 'true';
-const rawOrigins = (
-  process.env.CORS_ORIGINS ||
-  config?.corsOrigins ||
-  ''
-).split(',')
- .map(s => s.trim())
- .filter(Boolean);
+const rawOrigins = (process.env.CORS_ORIGINS || config?.corsOrigins || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const isAllowed =
-    ALLOW_ALL ||
-    !origin ||
-    rawOrigins.length === 0 ||
-    rawOrigins.includes(origin);
+  const isAllowed = ALLOW_ALL || !origin || rawOrigins.length === 0 || rawOrigins.includes(origin);
 
   if (isAllowed) {
     if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
     else res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Vary', 'Origin');
 
-    const reqMethod = req.headers['access-control-request-method'];
-    res.setHeader('Access-Control-Allow-Methods', reqMethod || 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-
+    const reqMethod  = req.headers['access-control-request-method'];
     const reqHeaders = req.headers['access-control-request-headers'];
-    res.setHeader('Access-Control-Allow-Headers', reqHeaders || 'Content-Type, Authorization, X-Requested-With');
 
+    res.setHeader('Access-Control-Allow-Methods', reqMethod || 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', reqHeaders || 'Content-Type, Authorization, X-Requested-With');
     if (origin) res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Max-Age', '86400');
   }
@@ -45,7 +35,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ===== Logs =====
+// Logs
 app.use(morgan((tokens, req, res) => JSON.stringify({
   method: tokens.method(req, res),
   url: tokens.url(req, res),
@@ -54,18 +44,31 @@ app.use(morgan((tokens, req, res) => JSON.stringify({
   ip: req.ip
 })));
 
-// ===== Body parser + seguridad =====
+// Body + seguridad
 app.use(express.json({ limit: '1mb' }));
 app.use(...securityMiddleware);
 
 // ===== Health / Ready =====
-app.get('/health', (_req, res) => res.json({ ok: true, env: config.env, sha: config.buildSha }));
-app.get('/ready',  (_req, res) => res.sendStatus(204));
+// /health SIEMPRE 200: indica si la API responde y cómo va la DB
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    env: config.env,
+    sha: config.buildSha,
+    db: (res.app?.locals?.dbReady ? 'up' : 'down')
+  });
+});
 
-// ===== API =====
+// /ready SOLO 204 cuando la DB esté conectada; si no, 503
+app.get('/ready', (req, res) => {
+  if (req.app?.locals?.dbReady) return res.sendStatus(204);
+  return res.status(503).json({ error: 'db not ready' });
+});
+
+// API
 app.use('/api', api);
 
-// ===== CORS EN ERRORES (garantiza header aunque haya 500) =====
+// CORS en errores (garantiza header aunque haya 500)
 app.use((err, req, res, next) => {
   if (!res.headersSent) {
     const origin = req.headers.origin;
@@ -80,7 +83,7 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// ===== 404 + errores =====
+// 404 + errores
 app.use(notFound);
 app.use(errorHandler);
 
