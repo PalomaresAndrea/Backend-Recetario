@@ -25,4 +25,4 @@ const recipeSchema = new mongoose.Schema({
 
 recipeSchema.index({ title: 'text', story: 'text', tags: 'text' });
 
-export default mongoose.model('Recipe', recipeSchema);
+export default mongoose.model('recipe', recipeSchema);
