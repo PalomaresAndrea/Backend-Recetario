@@ -1,8 +1,8 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 
-// ⚠️ Usa alias para no chocar con "auth" de middlewares
+// ?? Usa alias para no chocar con "auth" de middlewares
 import authRoutes from './auth.js';
-// Si tienes más routers, impórtalos con nombres únicos:
+// Si tienes m�s routers, imp�rtalos con nombres �nicos:
 import recipesRoutes from './recipes.js';
 
 const api = Router();

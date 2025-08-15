@@ -1,4 +1,4 @@
-ï»¿// src/routes/recipes.js
+// src/routes/recipes.js
 import { Router } from 'express';
 import Recipe from '../models/recipe.js';
 
@@ -7,8 +7,8 @@ const r = Router();
 /**
  * GET /api/recipes
  * Query:
- *  - q: texto en tÃ­tulo (regex)
- *  - cat: categorÃ­a exacta
+ *  - q: texto en título (regex)
+ *  - cat: categoría exacta
  */
 r.get('/', async (req, res, next) => {
   try {
