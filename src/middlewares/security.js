@@ -2,7 +2,7 @@
 import helmet from 'helmet';
 import cors from 'cors';
 
-// Lee y normaliza orígenes permitidos (puede venir vacío)
+// Lee y normaliza orígenes permitidos desde env (CORS_ORIGINS)
 const raw = process.env.CORS_ORIGINS || '';
 const allowed = raw.split(',').map(s => s.trim()).filter(Boolean);
 
@@ -31,6 +31,8 @@ function isOriginAllowed(origin) {
 
 export const securityMiddleware = [
   helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }),
+
+  // **ÚNICO CORS de la app**
   cors({
     origin: (origin, cb) => {
       const ok = isOriginAllowed(origin);
@@ -38,8 +40,9 @@ export const securityMiddleware = [
       cb(null, true);
     },
     credentials: true,
-    methods: ['GET','HEAD','PUT','PATCH','POST','DELETE'],
-    allowedHeaders: ['Content-Type','Authorization'],
+    methods: ['GET','HEAD','PUT','PATCH','POST','DELETE','OPTIONS'],
+    allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
     optionsSuccessStatus: 204,
+    maxAge: 86400,
   }),
 ];

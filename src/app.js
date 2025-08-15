@@ -1,38 +1,14 @@
+// src/app.js
 import express from 'express';
-import cors from 'cors';
 import morgan from 'morgan';
 import { securityMiddleware } from './middlewares/security.js';
 import { notFound, errorHandler } from './middlewares/error.js';
 import api from './routes/index.js';
 import { config } from './config/env.js';
+import { dbState } from './config/db.js';
 
 const app = express();
 app.set('trust proxy', 1);
-
-// ===== CORS (antes de cualquier otro middleware) =====
-const allowedOrigins = (config.corsOrigins || '')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-
-const corsOptions = {
-  origin(origin, cb) {
-    // Permite requests sin Origin (curl/health checks)
-    if (!origin) return cb(null, true);
-    // Si no configuraste orígenes, permite (útil para primeras pruebas)
-    if (allowedOrigins.length === 0) return cb(null, true);
-    return allowedOrigins.includes(origin)
-      ? cb(null, true)
-      : cb(new Error('Not allowed by CORS'));
-  },
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
-  credentials: true,          // deja true si envías Authorization/cookies
-  optionsSuccessStatus: 204,
-  maxAge: 86400,
-};
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Responde preflight
 
 // ===== Logs (JSON-friendly para Azure) =====
 app.use(morgan((tokens, req, res) => JSON.stringify({
@@ -43,13 +19,28 @@ app.use(morgan((tokens, req, res) => JSON.stringify({
   ip: req.ip
 })));
 
-// ===== Body parser + seguridad =====
+// ===== Body + seguridad (incluye CORS ÚNICO) =====
 app.use(express.json({ limit: '1mb' }));
 app.use(...securityMiddleware);
 
 // ===== Health / Ready =====
-app.get('/health', (_req, res) => res.json({ ok: true, env: config.env, sha: config.buildSha }));
-app.get('/ready',  (_req, res) => res.sendStatus(204));
+app.get('/health', (_req, res) => {
+  res.json({
+    ok: true,
+    env: config.env,
+    sha: config.buildSha,
+    uptime_s: Math.round(process.uptime()),
+    db_connected: dbState.connected,
+  });
+});
+
+app.get('/ready', (_req, res) => {
+  if (dbState.connected) return res.sendStatus(204);
+  return res.status(503).json({
+    ready: false,
+    reason: dbState.lastError?.message || 'DB no conectada'
+  });
+});
 
 // ===== API =====
 app.use('/api', api);
