@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 
-
 const ingredientSchema = new mongoose.Schema({
   qty: { type: String, trim: true },
   unit: { type: String, trim: true },
@@ -25,4 +24,5 @@ const recipeSchema = new mongoose.Schema({
 
 recipeSchema.index({ title: 'text', story: 'text', tags: 'text' });
 
+// El nombre del modelo puede ser 'Recipe' (convención)
 export default mongoose.model('recipe', recipeSchema);
