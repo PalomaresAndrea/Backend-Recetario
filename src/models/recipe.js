@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 
+
 const ingredientSchema = new mongoose.Schema({
   qty: { type: String, trim: true },
   unit: { type: String, trim: true },

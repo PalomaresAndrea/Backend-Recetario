@@ -7,17 +7,20 @@ function toNumber(v, def) {
 }
 
 export const config = {
-  env: process.env.NODE_ENV || 'development',
-  port: Number(process.env.WEBSITES_PORT || process.env.PORT || 80),
-   corsOrigins: process.env.CORS_ORIGINS || '' ,
+  env: process.env.NODE_ENV || 'production',
+
+  // Prioriza PORT (App Service), luego WEBSITES_PORT; default 8080 (no uses 80).
+  port: Number(process.env.PORT || process.env.WEBSITES_PORT || 8080),
+
+  corsOrigins: process.env.CORS_ORIGINS || '',
 
   // 🔐 JWT
   jwtSecret: process.env.JWT_SECRET || 'devsecret',
 
   // 🗄️ DB
-  mongoUri: process.env.MONGO_URI, // usar Atlas SRV o un mongodb:// local
+  mongoUri: (process.env.MONGO_URI || '').trim(),
 
-  // ✉️ SMTP
+  // ✉️ SMTP (opcional)
   mail: {
     host: process.env.MAIL_HOST,
     port: toNumber(process.env.MAIL_PORT, 587),
