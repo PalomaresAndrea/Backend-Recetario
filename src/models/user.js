@@ -1,14 +1,13 @@
+// src/models/User.js
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
   name:     { type: String, required: true, trim: true, maxlength: 80 },
-  email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
+  email:    { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
   password: { type: String, required: true, minlength: 6, select: false },
-  role:     { type: String, enum: ['user','admin'], default: 'user' },
+  role:     { type: String, enum: ['user', 'admin'], default: 'user' },
   favorites:[{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
-
-  // 🔐 Verificación email por OTP
   emailVerified: { type: Boolean, default: false },
   otpCodeHash:   { type: String, select: false },
   otpExpiresAt:  { type: Date,   select: false },
@@ -28,7 +27,11 @@ userSchema.methods.comparePassword = function(pwd) {
 };
 
 userSchema.set('toJSON', {
-  transform(_doc, ret) { delete ret.password; delete ret.otpCodeHash; return ret; }
+  transform(_doc, ret) {
+    delete ret.password;
+    delete ret.otpCodeHash;
+    return ret;
+  }
 });
 
-export default mongoose.model('User', userSchema);
+export default mongoose.models.User || mongoose.model('User', userSchema);
