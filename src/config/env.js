@@ -8,7 +8,8 @@ function toNumber(v, def) {
 
 export const config = {
   env: process.env.NODE_ENV || 'development',
-  port: toNumber(process.env.PORT, 3000),
+  port: Number(process.env.WEBSITES_PORT || process.env.PORT || 80),
+   corsOrigins: process.env.CORS_ORIGINS || '' ,
 
   // 🔐 JWT
   jwtSecret: process.env.JWT_SECRET || 'devsecret',
