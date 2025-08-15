@@ -13,13 +13,13 @@ import app from './app.js';
       console.warn('ℹ️ Telemetry no disponible (ok):', e?.message || e);
     }
 
-    // Conexión a DB
-    await connectDB();
-
-    // Levantar servidor
+    // Levantar servidor YA
     const server = app.listen(config.port, () => {
-      console.log(`🚀 API lista en http://0.0.0.0:${config.port}`);
+      console.log(`🚀 API escuchando en http://0.0.0.0:${config.port}`);
     });
+
+    // Conectar DB en background (con reintentos)
+    connectDB({ retries: 20, intervalMs: 5000 });
 
     // Apagado elegante
     const shutdown = () => {
