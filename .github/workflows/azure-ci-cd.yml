@@ -86,6 +86,7 @@ jobs:
             NODE_ENV=production \
             PORT=3000 \
             WEBSITES_PORT=3000 \
+            WEBSITES_CONTAINER_START_TIME_LIMIT=600 \
             MONGO_URI="${{ secrets.MONGO_URI }}" \
             JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             CORS_ORIGINS="${{ secrets.CORS_ORIGINS }}" \
@@ -95,23 +96,51 @@ jobs:
             APPINSIGHTS_CONNECTIONSTRING="${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}" \
             BUILD_SHA=${{ github.sha }}
 
+      - name: Enable Always On (best effort)
+        run: |
+          az webapp config set \
+            --name ${{ secrets.WEBAPP_NAME }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP }} \
+            --always-on true || echo "Always On no soportado en este plan (ok)."
+
       - name: Restart Web App
         run: az webapp restart --name ${{ secrets.WEBAPP_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP }}
 
-      - name: Healthcheck
+      # ========= Healthcheck robusto (acepta ready=204 o health=200) =========
+      - name: Warm-up & Healthcheck (ready/health)
         run: |
+          set -e
           HOST=$(az webapp show -g ${{ secrets.RESOURCE_GROUP }} -n ${{ secrets.WEBAPP_NAME }} --query defaultHostName -o tsv)
-          echo "Probing https://${HOST}/health"
-          for i in {1..24}; do
-            if curl -fsS --max-time 5 "https://${HOST}/health"; then
-              echo "Health OK"
+          if [ -z "$HOST" ]; then
+            echo "❌ No se pudo obtener el host del Web App"
+            exit 1
+          fi
+          echo "Probing host: https://${HOST}"
+
+          # Hasta 10 minutos (60 * 10s)
+          for i in $(seq 1 60); do
+            CODE_READY=$(curl -ks -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "https://${HOST}/ready" || true)
+            CODE_HEALTH=$(curl -ks -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "https://${HOST}/health" || true)
+
+            # Éxito si /ready=204 O /health=200
+            if [ "$CODE_READY" = "204" ] || [ "$CODE_HEALTH" = "200" ]; then
+              echo "✅ UP (ready:${CODE_READY} health:${CODE_HEALTH})"
               exit 0
             fi
-            echo "Retry $i/24..."
-            sleep 5
+
+            echo "⏳ Intento $i/60 (ready:${CODE_READY} health:${CODE_HEALTH})"
+            sleep 10
           done
-          echo "Healthcheck failed"
+
+          echo "❌ Healthcheck failed después de 10 minutos"
+          echo "Estado del WebApp:"
+          az webapp show -g ${{ secrets.RESOURCE_GROUP }} -n ${{ secrets.WEBAPP_NAME }} --query "{state: state, httpsOnly: httpsOnly}" -o table || true
+
+          echo "Config de contenedor:"
+          az webapp config container show -g ${{ secrets.RESOURCE_GROUP }} -n ${{ secrets.WEBAPP_NAME }} -o table || true
+
           exit 1
+      # ======================================================================
 
       - name: Mostrar URL HTTPS del Backend
         id: backend_url
