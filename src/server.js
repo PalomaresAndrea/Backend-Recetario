@@ -5,9 +5,9 @@ import app from './app.js';
 
 (async () => {
   try {
-    // Telemetría opcional (no truena si el archivo no existe)
+    // Telemetría opcional
     try {
-      const tel = await import('./lib/telemetry.js'); // si no existe, entra al catch
+      const tel = await import('./lib/telemetry.js');
       tel?.initTelemetry?.();
     } catch (e) {
       console.warn('ℹ️ Telemetry no disponible (ok):', e?.message || e);
