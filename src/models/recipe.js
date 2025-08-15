@@ -19,7 +19,7 @@ const recipeSchema = new mongoose.Schema({
   imageUrl: { type: String, default: '' },
   published: { type: Boolean, default: true },
   likes: { type: Number, default: 0 },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user' }
 }, { timestamps: true });
 
 recipeSchema.index({ title: 'text', story: 'text', tags: 'text' });
