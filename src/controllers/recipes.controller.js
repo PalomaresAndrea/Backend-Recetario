@@ -1,7 +1,6 @@
 ﻿import { body, validationResult, query } from "express-validator";
-import Recipe from "../models/recipe.js";
 import User from "../models/user.js";
-
+import Recipe from "../models/recipe.js"
 export const validateCreateRecipe = [
   body("title").trim().notEmpty().withMessage("Título requerido"),
   body("ingredients").isArray({ min: 1 }).withMessage("Al menos 1 ingrediente"),
