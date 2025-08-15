@@ -4,81 +4,76 @@ import { requireAuth } from '../middlewares/auth.js';
 
 const r = Router();
 
-// ---- helpers: mapear <-> español
-const toSpanish = (d) => ({
-  id: d._id?.toString(),
-  titulo: d.title,
-  categoria: d.category,
-  tiempo: d.time,
-  dificultad: d.difficulty,
-  porciones: d.portions,
-  historia: d.story,
-  ingredientes: d.ingredients, // [{qty,unit,name}]
-  pasos: d.steps,              // [string]
-  tags: d.tags || [],
-  imagen: d.imageUrl,
-  publicado: d.published,
-  likes: d.likes,
-  autor: d.createdBy?.name || d.createdBy || 'Anónimo',
-  createdAt: d.createdAt,
-  updatedAt: d.updatedAt,
+const toES = (doc) => ({
+  id: String(doc._id),
+  titulo: doc.title,
+  categoria: doc.category,
+  tiempo: doc.time,
+  dificultad: doc.difficulty,
+  porciones: doc.portions,
+  historia: doc.story,
+  ingredientes: (doc.ingredients||[]).map(i => ({ qty:i.qty, unit:i.unit, name:i.name })),
+  pasos: doc.steps || [],
+  tags: doc.tags || [],
+  imagen: doc.imageUrl,
+  publicado: doc.published,
+  likes: doc.likes,
+  autor: doc.createdBy?.name || doc.createdBy?.email || 'Anónimo',
 });
 
-const fromSpanish = (b = {}) => ({
-  title:       b.title       ?? b.titulo,
-  category:    b.category    ?? b.categoria,
-  time:        b.time        ?? b.tiempo,
-  difficulty:  b.difficulty  ?? b.dificultad,
-  portions:    b.portions    ?? b.porciones,
-  story:       b.story       ?? b.historia,
-  ingredients: b.ingredients ?? b.ingredientes,
-  steps:       b.steps       ?? b.pasos,
-  tags:        b.tags,
-  imageUrl:    b.imageUrl    ?? b.imagen,
-});
-
-// LISTAR (público)  GET /api/recipes?q=&cat=
+// GET /api/recipes   ?q=&cat=
 r.get('/', async (req, res, next) => {
   try {
     const { q, cat } = req.query;
     const filter = {};
     if (cat) filter.category = cat;
     if (q) filter.title = { $regex: String(q), $options: 'i' };
-
-    const docs = await Recipe.find(filter).lean();
-    res.json(docs.map(toSpanish));
-  } catch (err) { next(err); }
+    const docs = await Recipe.find(filter).populate('createdBy','name email').lean();
+    res.json(docs.map(toES));
+  } catch (e) { next(e); }
 });
 
-// BUSCAR por POST (público)  POST /api/recipes/search  body { q?, cat? }
+// POST /api/recipes/search   { q?, cat? }
 r.post('/search', async (req, res, next) => {
   try {
     const { q, cat } = req.body || {};
     const filter = {};
     if (cat) filter.category = cat;
     if (q) filter.title = { $regex: String(q), $options: 'i' };
-
-    const docs = await Recipe.find(filter).lean();
-    res.json(docs.map(toSpanish));
-  } catch (err) { next(err); }
+    const docs = await Recipe.find(filter).populate('createdBy','name email').lean();
+    res.json(docs.map(toES));
+  } catch (e) { next(e); }
 });
 
-// CREAR (protegido)  POST /api/recipes
+// POST /api/recipes (protegido)
 r.post('/', requireAuth, async (req, res, next) => {
   try {
-    const payload = { ...fromSpanish(req.body), createdBy: req.user._id };
+    const b = req.body || {};
+    const payload = {
+      title:      b.titulo     ?? b.title,
+      category:   b.categoria  ?? b.category,
+      time:       b.tiempo     ?? b.time,
+      difficulty: b.dificultad ?? b.difficulty,
+      portions:   b.porciones  ?? b.portions,
+      story:      b.historia   ?? b.story,
+      ingredients:b.ingredientes ?? b.ingredients,
+      steps:      b.pasos      ?? b.steps,
+      tags:       b.tags,
+      imageUrl:   b.imagen     ?? b.imageUrl,
+      createdBy:  req.user._id,
+    };
     const doc = await Recipe.create(payload);
-    res.status(201).json(toSpanish(doc.toObject()));
-  } catch (err) { next(err); }
+    res.status(201).json(toES(doc));
+  } catch (e) { next(e); }
 });
 
-// DETALLE (público)  GET /api/recipes/:id
+// GET /api/recipes/:id
 r.get('/:id', async (req, res, next) => {
   try {
-    const doc = await Recipe.findById(req.params.id).lean();
+    const doc = await Recipe.findById(req.params.id).populate('createdBy','name email').lean();
     if (!doc) return res.status(404).json({ error: 'Recipe not found' });
-    res.json(toSpanish(doc));
-  } catch (err) { next(err); }
+    res.json(toES(doc));
+  } catch (e) { next(e); }
 });
 
 export default r;
