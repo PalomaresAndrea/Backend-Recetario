@@ -1,36 +1,31 @@
 // src/server.js
-import { config } from './config/env.js';
-import { connectDB } from './config/db.js';
-import app from './app.js';
+import express from 'express';
+import { corsMiddleware, helmetMiddleware } from './middlewares/security.js';
 
-(async () => {
-  try {
-    // Telemetría opcional
-    try {
-      const tel = await import('./lib/telemetry.js');
-      tel?.initTelemetry?.();
-    } catch (e) {
-      console.warn('ℹ️ Telemetry no disponible (ok):', e?.message || e);
-    }
+const app = express();
 
-    // Levantar servidor YA
-    const server = app.listen(config.port, () => {
-      console.log(`🚀 API escuchando en http://0.0.0.0:${config.port}`);
-    });
+// CORS primero
+app.use(corsMiddleware);
+app.options('*', corsMiddleware); // maneja preflight global
 
-    // Conectar DB en background (con reintentos)
-    connectDB({ retries: 20, intervalMs: 5000 });
+app.use(express.json());
+app.use(helmetMiddleware);
 
-    // Apagado elegante
-    const shutdown = () => {
-      console.log('⏻ Cerrando servidor...');
-      server.close(() => process.exit(0));
-      setTimeout(() => process.exit(1), 10_000).unref();
-    };
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-  } catch (e) {
-    console.error('❌ No se pudo iniciar:', e);
-    process.exit(1);
-  }
-})();
+// Rutas
+import authRoutes from './routes/auth.js';
+import recipeRoutes from './routes/recipes.js';
+
+app.use('/api/auth', authRoutes);
+app.use('/api/recipes', recipeRoutes);
+
+// Health / Ready (opcional)
+app.get('/health', (_req, res) => res.status(200).json({ ok: true }));
+app.get('/ready', (_req, res) => {
+  const ready = globalThis.mongoReady === true; // o tu bandera real
+  return ready ? res.status(200).json({ ready: true }) : res.status(503).json({ ready: false });
+});
+
+const port = process.env.PORT || 3000;
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 API escuchando en http://0.0.0.0:${port}`);
+});

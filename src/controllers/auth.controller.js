@@ -1,4 +1,4 @@
-Ôªøimport { body, validationResult } from 'express-validator';
+import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import User from '../models/user.js';
@@ -6,12 +6,12 @@ import { signToken } from '../middlewares/auth.js';
 import { sendMail } from '../lib/mailer.js';
 
 const OTP_TTL_MIN = 10;        // expira en 10 min
-const RESEND_COOLDOWN_SEC = 60; // 60s entre reenv√≠os
+const RESEND_COOLDOWN_SEC = 60; // 60s entre reenvÌos
 const MAX_ATTEMPTS = 5;
 
 export const validateRegister = [
   body('name').isLength({ min: 2 }).withMessage('Nombre requerido'),
-  body('email').isEmail().withMessage('Email inv√°lido'),
+  body('email').isEmail().withMessage('Email inv·lido'),
   body('password').isLength({ min: 6 }).withMessage('Min 6 caracteres'),
 ];
 
@@ -21,7 +21,7 @@ export const validateLogin = [
 ];
 
 function generateOtp() {
-  // 6 d√≠gitos, sin ceros a la izquierda ‚Äúperdidos‚Äù
+  // 6 dÌgitos, sin ceros a la izquierda ìperdidosî
   const code = ('' + (crypto.randomInt(0, 1000000))).padStart(6, '0');
   return code;
 }
@@ -35,11 +35,11 @@ async function setOtpForUser(user) {
   user.otpLastSentAt = new Date();
   await user.save();
 
-  // ‚úâÔ∏è Enviar correo (HTML simple)
+  // ?? Enviar correo (HTML simple)
   const html = `
     <div style="font-family:system-ui,Segoe UI,Arial">
-      <h2>Tu c√≥digo de verificaci√≥n</h2>
-      <p>Usa este c√≥digo para verificar tu correo:</p>
+      <h2>Tu cÛdigo de verificaciÛn</h2>
+      <p>Usa este cÛdigo para verificar tu correo:</p>
       <p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p>
       <p>Expira en ${OTP_TTL_MIN} minutos.</p>
       <hr/>
@@ -48,9 +48,9 @@ async function setOtpForUser(user) {
   `;
   await sendMail({
     to: user.email,
-    subject: 'Tu c√≥digo OTP - Recetario K-pop',
+    subject: 'Tu cÛdigo OTP - Recetario K-pop',
     html,
-    text: `Tu c√≥digo es: ${code} (expira en ${OTP_TTL_MIN} minutos)`,
+    text: `Tu cÛdigo es: ${code} (expira en ${OTP_TTL_MIN} minutos)`,
   });
 }
 
@@ -69,7 +69,7 @@ export async function register(req, res) {
   if (!user) {
     user = await User.create({ name, email, password, emailVerified: false });
   } else {
-    // si exist√≠a no verificado, actualiza pass y nombre
+    // si existÌa no verificado, actualiza pass y nombre
     user.name = name;
     user.password = password;
     await user.save();
@@ -100,7 +100,7 @@ export async function resendOtp(req, res) {
 
 export async function verifyOtp(req, res) {
   const { email, code } = req.body || {};
-  if (!email || !code) return res.status(400).json({ error: 'Email y c√≥digo son requeridos' });
+  if (!email || !code) return res.status(400).json({ error: 'Email y cÛdigo son requeridos' });
 
   const user = await User.findOne({ email }).select('+otpCodeHash +otpExpiresAt +otpAttempts');
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -111,7 +111,7 @@ export async function verifyOtp(req, res) {
   }
 
   if (user.otpAttempts >= MAX_ATTEMPTS) {
-    return res.status(429).json({ error: 'Demasiados intentos. Reenv√≠a el OTP.' });
+    return res.status(429).json({ error: 'Demasiados intentos. ReenvÌa el OTP.' });
   }
 
   const ok = await bcrypt.compare(code, user.otpCodeHash || '');
@@ -119,7 +119,7 @@ export async function verifyOtp(req, res) {
 
   if (!ok) {
     await user.save();
-    return res.status(400).json({ error: 'C√≥digo incorrecto' });
+    return res.status(400).json({ error: 'CÛdigo incorrecto' });
   }
 
   user.emailVerified = true;
@@ -129,7 +129,7 @@ export async function verifyOtp(req, res) {
   await user.save();
 
   const token = signToken(user);
-  return res.json({ message: 'Correo verificado ‚úÖ', token, user: user.toJSON() });
+  return res.json({ message: 'Correo verificado ?', token, user: user.toJSON() });
 }
 
 export async function login(req, res) {
@@ -139,7 +139,7 @@ export async function login(req, res) {
   const { email, password } = req.body;
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await user.comparePassword(password))) {
-    return res.status(401).json({ error: 'Credenciales inv√°lidas' });
+    return res.status(401).json({ error: 'Credenciales inv·lidas' });
   }
   if (!user.emailVerified) {
     return res.status(403).json({ error: 'Debes verificar tu correo con el OTP.' });

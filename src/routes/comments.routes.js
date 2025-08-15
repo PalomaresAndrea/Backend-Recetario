@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { listComments, addComment, removeComment, validateComment } from "../controllers/comments.controller.js";
 import { requireAuth } from "../middlewares/auth.js";
 

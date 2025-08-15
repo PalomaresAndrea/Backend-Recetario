@@ -1,4 +1,4 @@
-﻿import { body, validationResult } from "express-validator";
+import { body, validationResult } from "express-validator";
 import Comment from "../models/Comment.js";
 
 export const validateComment = [body("text").isLength({ min: 1, max: 2000 }).withMessage("Comentario requerido")];

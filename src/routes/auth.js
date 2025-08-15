@@ -1,4 +1,4 @@
-Ôªø// src/routes/auth.js
+// src/routes/auth.js
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -21,10 +21,10 @@ router.post('/login', async (req, res, next) => {
 
     // Trae el hash aunque password sea select:false en el schema
     const user = await User.findOne({ email }).select('+password');
-    if (!user) return res.status(401).json({ error: 'Credenciales inv√°lidas' });
+    if (!user) return res.status(401).json({ error: 'Credenciales inv·lidas' });
 
     const ok = await bcrypt.compare(password, String(user.password));
-    if (!ok) return res.status(401).json({ error: 'Credenciales inv√°lidas' });
+    if (!ok) return res.status(401).json({ error: 'Credenciales inv·lidas' });
 
     const token = jwt.sign({ sub: String(user._id), email: user.email }, config.jwtSecret, { expiresIn: '7d' });
 
