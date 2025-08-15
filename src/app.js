@@ -10,10 +10,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ===== CORS GUARD (ANTES DE TODO) =====
-// Activa "permitir todo" temporalmente poniendo CORS_ALLOW_ALL=true en Azure
 const ALLOW_ALL = String(process.env.CORS_ALLOW_ALL || '').toLowerCase() === 'true';
-
-// Lista de orígenes permitidos (separados por coma, sin / final)
 const rawOrigins = (
   process.env.CORS_ORIGINS ||
   config?.corsOrigins ||
@@ -24,11 +21,10 @@ const rawOrigins = (
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-
   const isAllowed =
     ALLOW_ALL ||
-    !origin ||                 // permite calls sin Origin (curl/health)
-    rawOrigins.length === 0 || // si no configuraste orígenes, permite
+    !origin ||
+    rawOrigins.length === 0 ||
     rawOrigins.includes(origin);
 
   if (isAllowed) {
@@ -45,15 +41,11 @@ app.use((req, res, next) => {
     if (origin) res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Max-Age', '86400');
   }
-
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204); // responde el preflight aquí mismo
-  }
-
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
 
-// ===== Logs (JSON-friendly para Azure) =====
+// ===== Logs =====
 app.use(morgan((tokens, req, res) => JSON.stringify({
   method: tokens.method(req, res),
   url: tokens.url(req, res),
@@ -73,7 +65,7 @@ app.get('/ready',  (_req, res) => res.sendStatus(204));
 // ===== API =====
 app.use('/api', api);
 
-// ===== CORS EN ERRORES (asegura header aun si truena la ruta) =====
+// ===== CORS EN ERRORES (garantiza header aunque haya 500) =====
 app.use((err, req, res, next) => {
   if (!res.headersSent) {
     const origin = req.headers.origin;
