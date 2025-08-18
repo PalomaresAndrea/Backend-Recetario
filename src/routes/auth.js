@@ -36,7 +36,6 @@ router.post('/login', async (req, res, next) => {
 });
 
 /**
- * (Opcional) Registro rápido
  * POST /api/auth/register
  */
 router.post('/register', async (req, res, next) => {
@@ -48,8 +47,8 @@ router.post('/register', async (req, res, next) => {
     const exists = await User.findOne({ email });
     if (exists) return res.status(409).json({ error: 'Email ya registrado' });
 
-    const hash = await bcrypt.hash(String(password), 10);
-    const user = await User.create({ email, password: hash, name });
+    // ❗ No re-hashear aquí, deja que el pre('save') del modelo lo haga
+    const user = await User.create({ email, password, name });
 
     const token = signToken(user);
     return res.status(201).json({

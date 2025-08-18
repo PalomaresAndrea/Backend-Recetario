@@ -1,11 +1,15 @@
 {
   "name": "recetario-backend",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "applicationinsights": "^2.9.5",
@@ -24,5 +28,14 @@
     "nodemailer": "^7.0.5",
     "sanitize-html": "^2.13.0",
     "xss-clean": "^0.1.4"
+  },
+  "devDependencies": {
+    "@types/supertest": "^6.0.3",
+    "mongodb-memory-server": "^10.2.0",
+    "supertest": "^7.1.4",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20 <23"
   }
 }
