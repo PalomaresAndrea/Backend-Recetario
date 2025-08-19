@@ -3,6 +3,8 @@ export function notFound(req, res, _next) {
   res.status(404).json({ error: 'Not Found', path: req.originalUrl });
 }
 
+
+
 export function errorHandler(err, req, res, _next) {
   console.error('❌ ERROR:', {
     method: req.method,
