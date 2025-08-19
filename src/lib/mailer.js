@@ -5,6 +5,8 @@ import { config } from '../config/env.js';
 const DISABLED = String(process.env.MAIL_DISABLED || '').toLowerCase() === 'true';
 let transporter = null;
 
+
+
 export function getTransporter() {
   if (DISABLED) return null;
   if (transporter) return transporter;
